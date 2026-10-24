@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Lumora
+Exec=lumora-hub --page=welcome --autostart
+Icon=lumora
+OnlyShowIn=GNOME;
+X-GNOME-Autostart-Delay=3

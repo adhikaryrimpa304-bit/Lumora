@@ -1,0 +1,6 @@
+#!/bin/sh
+# Boot splash with the Lumora logo. Non-fatal: the system still boots without it.
+if command -v plymouth-set-default-theme >/dev/null 2>&1; then
+  plymouth-set-default-theme -R lumora || echo "lumora: could not set the plymouth theme"
+fi
+exit 0

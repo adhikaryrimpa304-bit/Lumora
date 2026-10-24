@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=System Information
+Comment=Lumora version, hardware and updates
+Exec=lumora-hub --page=system
+Icon=computer
+Terminal=false
+Categories=GNOME;GTK;System;

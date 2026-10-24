@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=Lumora
+Description=Lumora OS boot splash
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/lumora
+ScriptFile=/usr/share/plymouth/themes/lumora/lumora.script

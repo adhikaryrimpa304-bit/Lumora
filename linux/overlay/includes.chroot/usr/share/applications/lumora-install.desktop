@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Install Lumora OS
+Comment=Install Lumora OS onto a drive
+Exec=lumora-install
+Icon=lumora
+Terminal=false
+Categories=System;

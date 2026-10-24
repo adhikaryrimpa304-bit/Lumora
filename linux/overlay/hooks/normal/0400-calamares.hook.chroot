@@ -1,0 +1,7 @@
+#!/bin/sh
+# Use the Lumora installer branding (keeps the Debian module configuration).
+f=/etc/calamares/settings.conf
+if [ -f "$f" ]; then
+  if grep -q '^branding:' "$f"; then sed -i 's/^branding:.*/branding: lumora/' "$f"; else echo 'branding: lumora' >> "$f"; fi
+fi
+exit 0

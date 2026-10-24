@@ -1,0 +1,8 @@
+#!/bin/sh
+exec tail -n +3 $0
+# Lumora extra boot entries
+if [ "$grub_platform" = "efi" ]; then
+  menuentry "UEFI firmware settings" --class efi { fwsetup }
+fi
+menuentry "Restart" --class restart { reboot }
+menuentry "Shut down" --class shutdown { halt }

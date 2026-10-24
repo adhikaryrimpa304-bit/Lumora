@@ -1,0 +1,40 @@
+#!/bin/sh
+# Lumora maintenance helper. Runs as root through pkexec (see org.lumora.helper.policy).
+set -u
+in_live() { grep -qw 'boot=live' /proc/cmdline; }
+
+case "${1:-}" in
+  update)
+    apt-get update 2>&1 ;;
+  upgrade)
+    DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::=--force-confold dist-upgrade 2>&1 ;;
+  auto-updates)
+    case "${2:-}" in
+      on)  v=1 ;;
+      off) v=0 ;;
+      *)   echo "usage: helper auto-updates on|off"; exit 2 ;;
+    esac
+    printf 'APT::Periodic::Update-Package-Lists "%s";\nAPT::Periodic::Unattended-Upgrade "%s";\n' "$v" "$v" > /etc/apt/apt.conf.d/20auto-upgrades
+    echo "Automatic updates: $2" ;;
+  repair-packages)
+    in_live && { echo "Not available in the live session."; exit 1; }
+    dpkg --configure -a 2>&1
+    DEBIAN_FRONTEND=noninteractive apt-get -f install -y 2>&1 ;;
+  rebuild-menu)
+    in_live && { echo "Not available in the live session."; exit 1; }
+    update-grub 2>&1 ;;
+  repair-grub)
+    in_live && { echo "Not available in the live session."; exit 1; }
+    if [ -d /sys/firmware/efi ]; then
+      grub-install --target=x86_64-efi --bootloader-id=Lumora --recheck 2>&1 || exit 1
+    else
+      src=$(findmnt -n -o SOURCE / 2>/dev/null)
+      disk=$(lsblk -no PKNAME "$src" 2>/dev/null | head -n1)
+      [ -n "$disk" ] || { echo "Could not detect the boot disk."; exit 1; }
+      grub-install --recheck "/dev/$disk" 2>&1 || exit 1
+    fi
+    update-grub 2>&1 ;;
+  *)
+    echo "usage: helper update|upgrade|auto-updates on|off|repair-packages|rebuild-menu|repair-grub"
+    exit 2 ;;
+esac

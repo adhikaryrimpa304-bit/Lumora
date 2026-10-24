@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Welcome to Lumora
+Comment=First-run setup, tips and Flathub
+Exec=lumora-hub --page=welcome
+Icon=lumora
+Terminal=false
+Categories=GNOME;GTK;System;

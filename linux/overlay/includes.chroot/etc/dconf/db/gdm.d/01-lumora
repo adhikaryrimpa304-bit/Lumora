@@ -1,0 +1,8 @@
+[org/gnome/login-screen]
+logo='/usr/share/pixmaps/lumora-logo-gdm.png'
+banner-message-enable=false
+
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
+icon-theme='Papirus-Dark'
+font-name='Inter 11'

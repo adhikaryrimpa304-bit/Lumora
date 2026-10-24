@@ -1,0 +1,8 @@
+#!/bin/sh
+set -e
+dconf update
+f=$(readlink -f /etc/os-release)
+sed -i 's/^PRETTY_NAME=.*/PRETTY_NAME="Lumora OS"/' "$f"
+if grep -q '^LOGO=' "$f"; then sed -i 's/^LOGO=.*/LOGO=lumora/' "$f"; else echo 'LOGO=lumora' >> "$f"; fi
+echo "Lumora OS \n \l" > /etc/issue
+gtk-update-icon-cache -f /usr/share/icons/hicolor >/dev/null 2>&1 || true

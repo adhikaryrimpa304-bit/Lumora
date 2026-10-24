@@ -1,0 +1,493 @@
+#!/usr/bin/python3
+"""Lumora Hub: Welcome, Updates, System information and Recovery in one app."""
+import json
+import os
+import platform
+import shutil
+import subprocess
+import sys
+import threading
+
+VERSION = "1.0"
+HELPER = "/usr/lib/lumora/helper"
+CONFIG_DIR = os.path.join(os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config")), "lumora")
+CONFIG_FILE = os.path.join(CONFIG_DIR, "hub.json")
+LOGO = "/usr/share/pixmaps/lumora-logo.png"
+
+
+# ---------- plain helpers (no GUI needed) ----------
+def load_config():
+    try:
+        with open(CONFIG_FILE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_config(cfg):
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(cfg, f)
+
+
+def sh(cmd, timeout=10):
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout).stdout.strip()
+    except Exception:
+        return ""
+
+
+def os_release():
+    data = {}
+    try:
+        with open("/etc/os-release") as f:
+            for line in f:
+                if "=" in line:
+                    k, v = line.rstrip().split("=", 1)
+                    data[k] = v.strip('"')
+    except OSError:
+        pass
+    return data
+
+
+def cpu_model():
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or "Unknown"
+
+
+def memory():
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal"):
+                    return "%.1f GB" % (int(line.split()[1]) / 1048576)
+    except Exception:
+        pass
+    return "Unknown"
+
+
+def graphics():
+    out = sh(["lspci"])
+    gpus = [l.split(": ", 1)[-1] for l in out.splitlines()
+            if "VGA" in l or "3D controller" in l or "Display controller" in l]
+    return "; ".join(gpus) if gpus else "Unknown"
+
+
+def disk():
+    u = shutil.disk_usage("/")
+    return "%.0f GB used of %.0f GB" % (u.used / 1e9, u.total / 1e9)
+
+
+def uptime():
+    try:
+        with open("/proc/uptime") as f:
+            s = float(f.read().split()[0])
+        return "%d h %d min" % (s // 3600, s % 3600 // 60)
+    except Exception:
+        return "Unknown"
+
+
+def gnome_version():
+    return sh(["gnome-shell", "--version"]).replace("GNOME Shell ", "") or "Unknown"
+
+
+def is_live():
+    try:
+        with open("/proc/cmdline") as f:
+            return "boot=live" in f.read()
+    except OSError:
+        return False
+
+
+def auto_updates_enabled():
+    try:
+        with open("/etc/apt/apt.conf.d/20auto-upgrades") as f:
+            return 'Unattended-Upgrade "1"' in f.read()
+    except OSError:
+        return False
+
+
+def system_rows():
+    r = os_release()
+    base = "Debian %s (%s)" % (r.get("VERSION_ID", "?"), r.get("VERSION_CODENAME", "?"))
+    return [
+        ("Operating system", "Lumora OS %s" % VERSION),
+        ("Based on", base),
+        ("Kernel", platform.release()),
+        ("GNOME", gnome_version()),
+        ("Session", os.environ.get("XDG_SESSION_TYPE", "Unknown")),
+        ("Computer", platform.node() or "Unknown"),
+        ("Processor", cpu_model()),
+        ("Memory", memory()),
+        ("Graphics", graphics()),
+        ("Storage", disk()),
+        ("Uptime", uptime()),
+        ("Boot mode", "UEFI" if os.path.isdir("/sys/firmware/efi") else "BIOS"),
+    ]
+
+
+def print_info():
+    cy, pu, rs = "\033[38;2;0;240;255m", "\033[38;2;176;38;255m", "\033[0m"
+    print("%sLUMORA%s OS" % (pu, rs))
+    for k, v in system_rows():
+        print("%s%-18s%s %s" % (cy, k, rs, v))
+
+
+def parse_args(argv):
+    page, autostart, info = "welcome", False, False
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a == "--info":
+            info = True
+        elif a == "--autostart":
+            autostart = True
+        elif a.startswith("--page="):
+            page = a.split("=", 1)[1]
+        elif a == "--page" and i + 1 < len(argv):
+            page = argv[i + 1]
+            i += 1
+        i += 1
+    return page, autostart, info
+
+
+# ---------- GUI ----------
+def run_ui(page, autostart):
+    import gi
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+    from gi.repository import Adw, Gdk, GLib, Gtk
+
+    app = Adw.Application(application_id="org.lumora.Hub")
+
+    def on_activate(app):
+        existing = app.props.active_window
+        if existing:
+            existing.present()
+            return
+        cfg = load_config()
+        if autostart and not cfg.get("show_welcome", True):
+            app.quit()
+            return
+
+        win = Adw.ApplicationWindow(application=app)
+        win.set_title("Lumora Hub")
+        win.set_default_size(560, 760)
+        overlay = Adw.ToastOverlay()
+
+        def toast(text):
+            overlay.add_toast(Adw.Toast.new(text))
+
+        def run_async(argv, done):
+            def worker():
+                try:
+                    p = subprocess.run(argv, capture_output=True, text=True)
+                    out, code = (p.stdout + p.stderr).strip(), p.returncode
+                except Exception as e:  # noqa: BLE001
+                    out, code = str(e), 1
+                GLib.idle_add(done, code, out)
+            threading.Thread(target=worker, daemon=True).start()
+
+        def show_result(heading, code, out):
+            tail = "\n".join(out.splitlines()[-12:]) or "Done."
+            d = Adw.MessageDialog.new(win, heading if code == 0 else heading + " failed", tail)
+            d.add_response("ok", "OK")
+            d.present()
+
+        def confirm(heading, body, label, on_yes):
+            d = Adw.MessageDialog.new(win, heading, body)
+            d.add_response("cancel", "Cancel")
+            d.add_response("go", label)
+            d.set_response_appearance("go", Adw.ResponseAppearance.SUGGESTED)
+            d.connect("response", lambda _d, r: on_yes() if r == "go" else None)
+            d.present()
+
+        def action_row(title, subtitle, button, on_click, suggested=False):
+            row = Adw.ActionRow(title=title, subtitle=subtitle)
+            btn = Gtk.Button(label=button, valign=Gtk.Align.CENTER)
+            if suggested:
+                btn.add_css_class("suggested-action")
+            btn.connect("clicked", lambda *_: on_click())
+            row.add_suffix(btn)
+            return row, btn
+
+        def launch(argv):
+            try:
+                subprocess.Popen(argv)
+            except Exception:
+                toast("Could not start %s" % argv[0])
+
+        # ----- Welcome -----
+        welcome = Adw.PreferencesPage()
+        hero = Adw.PreferencesGroup()
+        if os.path.exists(LOGO):
+            pic = Gtk.Picture.new_for_filename(LOGO)
+            pic.set_can_shrink(True)
+            pic.set_content_fit(Gtk.ContentFit.CONTAIN)
+            pic.set_size_request(-1, 210)
+            hero.add(pic)
+        title = Gtk.Label(label="Welcome to Lumora OS")
+        title.add_css_class("title-1")
+        title.set_margin_top(12)
+        hero.add(title)
+        welcome.add(hero)
+
+        start = Adw.PreferencesGroup(title="Get started")
+        if is_live():
+            row, _ = action_row("Install Lumora OS", "Install to a drive and keep your settings",
+                                "Install", lambda: launch(["lumora-install"]), True)
+            start.add(row)
+        row, _ = action_row("Software", "Discover and install applications", "Open",
+                            lambda: launch(["gnome-software"]))
+        start.add(row)
+        row, _ = action_row("Appearance", "Wallpapers, accent and dark mode", "Open",
+                            lambda: launch(["gnome-control-center", "background"]))
+        start.add(row)
+
+        flathub_row = Adw.ActionRow(title="Flathub", subtitle="Checking...")
+        flathub_btn = Gtk.Button(label="Enable", valign=Gtk.Align.CENTER)
+        flathub_row.add_suffix(flathub_btn)
+
+        def refresh_flathub():
+            have = "flathub" in sh(["flatpak", "remotes", "--columns=name"])
+            flathub_row.set_subtitle("Enabled: thousands more apps in Software" if have
+                                     else "Add the Flathub app store")
+            flathub_btn.set_visible(not have)
+
+        def enable_flathub():
+            def done(code, out):
+                toast("Flathub enabled" if code == 0 else "Could not enable Flathub (are you online?)")
+                refresh_flathub()
+            run_async(["flatpak", "remote-add", "--user", "--if-not-exists", "flathub",
+                       "https://dl.flathub.org/repo/flathub.flatpakrepo"], done)
+
+        flathub_btn.connect("clicked", lambda *_: enable_flathub())
+        refresh_flathub()
+        start.add(flathub_row)
+        welcome.add(start)
+
+        tips = Adw.PreferencesGroup(title="Tips")
+        for t, s in [
+            ("Press Super", "Open Activities to search apps and switch windows."),
+            ("Tile windows", "Super + Left or Right snaps a window to half the screen."),
+            ("12 or 24-hour clock", "Settings, System, Date & Time. The desktop clock follows it."),
+            ("Lock the screen", "Super + L locks with a blurred Lumora background."),
+        ]:
+            tips.add(Adw.ActionRow(title=t, subtitle=s))
+        welcome.add(tips)
+
+        opts = Adw.PreferencesGroup()
+        sw = Adw.SwitchRow(title="Show Welcome at startup")
+        sw.set_active(cfg.get("show_welcome", True))
+
+        def on_show_toggle(row, _p):
+            c = load_config()
+            c["show_welcome"] = row.get_active()
+            save_config(c)
+        sw.connect("notify::active", on_show_toggle)
+        opts.add(sw)
+        welcome.add(opts)
+
+        # ----- Updates -----
+        updates = Adw.PreferencesPage()
+        ug = Adw.PreferencesGroup(title="Software updates")
+        status = Adw.ActionRow(title="Status", subtitle="Not checked yet")
+        check_btn = Gtk.Button(label="Check", valign=Gtk.Align.CENTER)
+        install_btn = Gtk.Button(label="Install", valign=Gtk.Align.CENTER, sensitive=False)
+        install_btn.add_css_class("suggested-action")
+        status.add_suffix(check_btn)
+        status.add_suffix(install_btn)
+        ug.add(status)
+        updates.add(ug)
+
+        avail = Adw.PreferencesGroup(title="Available updates")
+        avail.set_visible(False)
+        updates.add(avail)
+        avail_rows = []
+
+        def list_upgradable():
+            out = sh(["apt", "list", "--upgradable"], timeout=60)
+            pk = []
+            for line in out.splitlines():
+                if "/" in line and "Listing" not in line:
+                    name = line.split("/", 1)[0]
+                    ver = line.split(" ", 2)[1] if " " in line else ""
+                    pk.append((name, ver))
+            return pk
+
+        def show_list():
+            pk = list_upgradable()
+            for r in avail_rows:
+                avail.remove(r)
+            avail_rows.clear()
+            if pk:
+                status.set_subtitle("%d update%s available" % (len(pk), "" if len(pk) == 1 else "s"))
+                for name, ver in pk[:15]:
+                    r = Adw.ActionRow(title=name, subtitle=ver)
+                    avail.add(r)
+                    avail_rows.append(r)
+                avail.set_visible(True)
+            else:
+                status.set_subtitle("Your system is up to date")
+                avail.set_visible(False)
+            install_btn.set_sensitive(bool(pk))
+            check_btn.set_sensitive(True)
+
+        def do_check():
+            check_btn.set_sensitive(False)
+            install_btn.set_sensitive(False)
+            status.set_subtitle("Checking...")
+
+            def done(code, out):
+                if code != 0:
+                    status.set_subtitle("Could not check for updates")
+                    check_btn.set_sensitive(True)
+                    return
+                show_list()
+            run_async(["pkexec", HELPER, "update"], done)
+
+        def do_install():
+            def go():
+                check_btn.set_sensitive(False)
+                install_btn.set_sensitive(False)
+                status.set_subtitle("Installing updates...")
+
+                def done(code, out):
+                    toast("Updates installed" if code == 0 else "Update failed")
+                    if code != 0:
+                        show_result("Update", code, out)
+                    show_list()
+                run_async(["pkexec", HELPER, "upgrade"], done)
+            confirm("Install updates?", "Lumora will download and install all available updates.",
+                    "Install", go)
+
+        check_btn.connect("clicked", lambda *_: do_check())
+        install_btn.connect("clicked", lambda *_: do_install())
+
+        auto_group = Adw.PreferencesGroup()
+        auto = Adw.SwitchRow(title="Automatic security updates",
+                             subtitle="Installed quietly in the background")
+        auto.set_active(auto_updates_enabled())
+        guard = {"busy": False}
+
+        def on_auto(row, _p):
+            if guard["busy"]:
+                return
+            want = row.get_active()
+
+            def done(code, out):
+                if code != 0:
+                    guard["busy"] = True
+                    row.set_active(not want)
+                    guard["busy"] = False
+                    toast("Could not change the setting")
+                else:
+                    toast("Automatic updates " + ("on" if want else "off"))
+            run_async(["pkexec", HELPER, "auto-updates", "on" if want else "off"], done)
+        auto.connect("notify::active", on_auto)
+        auto_group.add(auto)
+        updates.add(auto_group)
+
+        # ----- System -----
+        system = Adw.PreferencesPage()
+        sg = Adw.PreferencesGroup(title="About this computer")
+        rows = system_rows()
+        for k, v in rows:
+            r = Adw.ActionRow(title=k, subtitle=v)
+            r.set_subtitle_selectable(True)
+            sg.add(r)
+        system.add(sg)
+        cg = Adw.PreferencesGroup()
+
+        def copy_details():
+            text = "\n".join("%s: %s" % kv for kv in rows)
+            Gdk.Display.get_default().get_clipboard().set(text)
+            toast("Copied to clipboard")
+        crow, _ = action_row("Copy details", "Paste into a bug report or message", "Copy", copy_details)
+        cg.add(crow)
+        system.add(cg)
+
+        # ----- Recovery -----
+        recovery = Adw.PreferencesPage()
+        ig = Adw.PreferencesGroup(title="If Lumora will not start")
+        for t, s in [
+            ("Recovery mode", "At the boot menu choose Advanced options, then a recovery mode entry."),
+            ("Rescue from USB", "Boot the Lumora USB and choose Live system (failsafe)."),
+            ("Firmware settings", "The boot menu has UEFI firmware settings, Restart and Shut down."),
+        ]:
+            ig.add(Adw.ActionRow(title=t, subtitle=s))
+        recovery.add(ig)
+
+        rg = Adw.PreferencesGroup(title="Repair")
+
+        def root_task(heading, arg, body, label):
+            def go():
+                toast("Working...")
+
+                def done(code, out):
+                    show_result(heading, code, out)
+                run_async(["pkexec", HELPER, arg], done)
+            confirm(heading, body, label, go)
+
+        r1, _ = action_row("Repair packages", "Finish interrupted installs and fix broken packages", "Run",
+                           lambda: root_task("Repair packages", "repair-packages",
+                                             "This completes interrupted installs and fixes dependencies.", "Repair"))
+        r2, _ = action_row("Rebuild boot menu", "Regenerate the GRUB menu", "Run",
+                           lambda: root_task("Rebuild boot menu", "rebuild-menu",
+                                             "This regenerates the boot menu entries.", "Rebuild"))
+        r3, _ = action_row("Reinstall bootloader", "Fix a computer that no longer boots Lumora", "Run",
+                           lambda: root_task("Reinstall bootloader", "repair-grub",
+                                             "This reinstalls GRUB to your boot disk and rebuilds the menu.", "Reinstall"))
+
+        def reset_look():
+            def go():
+                cmd = ("dconf load / < /etc/dconf/db/local.d/00-lumora && "
+                       "mkdir -p ~/.config/gtk-4.0 ~/.config/gtk-3.0 && "
+                       "cp /etc/skel/.config/gtk-4.0/gtk.css ~/.config/gtk-4.0/gtk.css && "
+                       "cp /etc/skel/.config/gtk-3.0/gtk.css ~/.config/gtk-3.0/gtk.css")
+                run_async(["sh", "-c", cmd], lambda code, out: show_result("Reset Lumora look", code, out))
+            confirm("Reset Lumora look?", "This restores the Lumora colors, wallpaper, dock and terminal settings.",
+                    "Reset", go)
+        r4, _ = action_row("Reset Lumora look", "Restore the default colors, dock and terminal", "Reset", reset_look)
+        for r in (r1, r2, r3, r4):
+            rg.add(r)
+        recovery.add(rg)
+
+        # ----- Window layout -----
+        stack = Adw.ViewStack()
+        stack.add_titled_with_icon(welcome, "welcome", "Welcome", "starred-symbolic")
+        stack.add_titled_with_icon(updates, "updates", "Updates", "software-update-available-symbolic")
+        stack.add_titled_with_icon(system, "system", "System", "computer-symbolic")
+        stack.add_titled_with_icon(recovery, "recovery", "Recovery", "emblem-synchronizing-symbolic")
+        if page in ("welcome", "updates", "system", "recovery"):
+            stack.set_visible_child_name(page)
+        overlay.set_child(stack)
+
+        header = Adw.HeaderBar()
+        header.set_title_widget(Adw.WindowTitle.new("Lumora Hub", "Version " + VERSION))
+        bar = Adw.ViewSwitcherBar()
+        bar.set_stack(stack)
+        bar.set_reveal(True)
+        view = Adw.ToolbarView()
+        view.add_top_bar(header)
+        view.set_content(overlay)
+        view.add_bottom_bar(bar)
+        win.set_content(view)
+        win.present()
+
+    app.connect("activate", on_activate)
+    return app.run([sys.argv[0]])
+
+
+if __name__ == "__main__":
+    pg, auto_start, info_only = parse_args(sys.argv[1:])
+    if info_only:
+        print_info()
+        sys.exit(0)
+    sys.exit(run_ui(pg, auto_start))

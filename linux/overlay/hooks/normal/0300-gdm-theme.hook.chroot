@@ -1,0 +1,67 @@
+#!/bin/sh
+# Login screen theme: Lumora background (gaussian-blurred), glass entry and user list.
+# Non-fatal: if anything is missing, the stock login screen is kept.
+ALT=""
+for n in gdm3-theme.gresource gdm-theme.gresource; do
+  if update-alternatives --query "$n" >/dev/null 2>&1; then ALT="$n"; break; fi
+done
+[ -z "$ALT" ] && { echo "lumora: no GDM theme alternative found, skipping login theme"; exit 0; }
+command -v glib-compile-resources >/dev/null 2>&1 || { echo "lumora: glib-compile-resources missing, skipping login theme"; exit 0; }
+
+LINK=$(update-alternatives --query "$ALT" | sed -n 's/^Link: //p')
+SRC=$(update-alternatives --query "$ALT" | sed -n 's/^Value: //p')
+TMP=$(mktemp -d); cd "$TMP" || exit 0
+
+for r in $(gresource list "$SRC"); do
+  mkdir -p ".${r%/*}"
+  gresource extract "$SRC" "$r" > ".$r"
+done
+D=org/gnome/shell/theme
+[ -d "$D" ] || { echo "lumora: unexpected theme layout, skipping"; exit 0; }
+
+cp /usr/share/backgrounds/lumora/lumora-login.png "$D/lumora-login.png"
+for css in "$D"/gnome-shell*.css; do
+  cat >> "$css" <<'CSS'
+
+/* Lumora login and lock screen */
+#lockDialogGroup {
+  background: #130B20 url(resource:///org/gnome/shell/theme/lumora-login.png);
+  background-size: 1920px 1080px;
+  background-size: cover;
+}
+StEntry {
+  border-radius: 999px;
+  background-color: rgba(28, 18, 48, 0.72);
+  border: 1px solid rgba(216, 166, 255, 0.45);
+  color: #FFFFFF;
+  padding: 8px 18px;
+}
+StEntry:focus {
+  border-color: #00F0FF;
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.35);
+}
+.login-dialog-user-list-item:hover,
+.login-dialog-user-list-item:focus {
+  background-color: rgba(176, 38, 255, 0.30);
+  border-radius: 22px;
+}
+.login-dialog-user-list-item:focus {
+  box-shadow: inset 0 0 0 1px #00F0FF;
+}
+CSS
+done
+
+{
+  echo '<?xml version="1.0" encoding="UTF-8"?><gresources><gresource prefix="/org/gnome/shell/theme">'
+  (cd "$D" && find . -type f | sed 's|^\./||' | while read -r f; do echo "<file>$f</file>"; done)
+  echo '</gresource></gresources>'
+} > theme.gresource.xml
+
+if glib-compile-resources --sourcedir="$D" --target=lumora-gdm.gresource theme.gresource.xml; then
+  install -D -m 644 lumora-gdm.gresource /usr/share/gnome-shell/lumora-gdm.gresource
+  update-alternatives --install "$LINK" "$ALT" /usr/share/gnome-shell/lumora-gdm.gresource 50
+  update-alternatives --set "$ALT" /usr/share/gnome-shell/lumora-gdm.gresource
+else
+  echo "lumora: could not compile the login theme, keeping the stock one"
+fi
+exit 0

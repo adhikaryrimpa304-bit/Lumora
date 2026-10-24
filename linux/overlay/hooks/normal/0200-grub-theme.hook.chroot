@@ -1,0 +1,13 @@
+#!/bin/sh
+# Builds GRUB fonts for the installed-system theme (falls back to GRUB's built-in font).
+T=/usr/share/grub/themes/lumora
+F=/usr/share/fonts/truetype/dejavu
+if command -v grub-mkfont >/dev/null 2>&1 && [ -f "$F/DejaVuSans.ttf" ]; then
+  grub-mkfont -s 20 -o "$T/regular20.pf2" "$F/DejaVuSans.ttf"
+  grub-mkfont -s 14 -o "$T/regular14.pf2" "$F/DejaVuSans.ttf"
+  sed -i 's/@FONT_SMALL@/DejaVu Sans Regular 14/g; s/@FONT@/DejaVu Sans Regular 20/g' "$T/theme.txt"
+else
+  [ -f /usr/share/grub/unicode.pf2 ] && cp /usr/share/grub/unicode.pf2 "$T/unicode.pf2"
+  sed -i 's/@FONT_SMALL@/Unifont Regular 16/g; s/@FONT@/Unifont Regular 16/g' "$T/theme.txt"
+fi
+exit 0

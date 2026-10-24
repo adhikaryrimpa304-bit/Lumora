@@ -1,0 +1,47 @@
+Window.SetBackgroundTopColor(0.075, 0.043, 0.125);
+Window.SetBackgroundBottomColor(0.118, 0.071, 0.200);
+
+logo.image = Image("logo.png");
+logo.sprite = Sprite(logo.image);
+logo.x = Window.GetX() + Window.GetWidth() / 2 - logo.image.GetWidth() / 2;
+logo.y = Window.GetY() + Window.GetHeight() / 2 - logo.image.GetHeight() / 2 - 40;
+logo.sprite.SetPosition(logo.x, logo.y, 10);
+
+bar.bg.image = Image("bar-bg.png");
+bar.bg.sprite = Sprite(bar.bg.image);
+bar.x = Window.GetX() + Window.GetWidth() / 2 - bar.bg.image.GetWidth() / 2;
+bar.y = logo.y + logo.image.GetHeight() + 50;
+bar.bg.sprite.SetPosition(bar.x, bar.y, 5);
+
+bar.fill.image = Image("bar-fill.png");
+bar.fill.sprite = Sprite();
+bar.fill.sprite.SetPosition(bar.x, bar.y, 6);
+
+frame = 0;
+fun refresh_callback () {
+  frame++;
+  logo.sprite.SetOpacity(0.88 + 0.12 * Math.Sin(frame / 18));
+}
+Plymouth.SetRefreshFunction(refresh_callback);
+
+fun boot_progress_callback (time, progress) {
+  w = Math.Int(bar.bg.image.GetWidth() * progress);
+  if (w < 1) w = 1;
+  bar.fill.sprite.SetImage(bar.fill.image.Scale(w, bar.fill.image.GetHeight()));
+}
+Plymouth.SetBootProgressFunction(boot_progress_callback);
+
+pw.sprite = Sprite();
+fun display_password_callback (prompt, bullets) {
+  s = "";
+  for (i = 0; i < bullets; i++) s = s + "*";
+  img = Image.Text(prompt + "  " + s, 1, 1, 1);
+  pw.sprite.SetImage(img);
+  pw.sprite.SetPosition(Window.GetX() + Window.GetWidth() / 2 - img.GetWidth() / 2, bar.y + 50, 20);
+  pw.sprite.SetOpacity(1);
+}
+fun display_normal_callback () {
+  pw.sprite.SetOpacity(0);
+}
+Plymouth.SetDisplayPasswordFunction(display_password_callback);
+Plymouth.SetDisplayNormalFunction(display_normal_callback);

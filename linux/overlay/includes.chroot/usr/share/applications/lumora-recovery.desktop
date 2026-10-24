@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lumora Recovery
+Comment=Repair boot and package problems
+Exec=lumora-hub --page=recovery
+Icon=emblem-synchronizing
+Terminal=false
+Categories=GNOME;GTK;System;

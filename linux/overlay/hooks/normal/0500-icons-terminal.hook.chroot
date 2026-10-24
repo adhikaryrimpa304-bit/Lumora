@@ -1,0 +1,24 @@
+#!/bin/sh
+# Violet folders in Papirus, Lumora bash prompt, executable bits. Non-fatal.
+for theme in Papirus Papirus-Dark; do
+  for dir in /usr/share/icons/$theme/*/places; do
+    [ -d "$dir" ] || continue
+    find "$dir" -maxdepth 1 -type l -name 'folder*.svg' | while read -r l; do
+      t=$(readlink "$l")
+      n=$(printf '%s' "$t" | sed 's/folder-blue/folder-violet/')
+      if [ "$n" != "$t" ] && [ -e "$(dirname "$l")/$n" ]; then ln -sf "$n" "$l"; fi
+    done
+  done
+  gtk-update-icon-cache -f /usr/share/icons/$theme >/dev/null 2>&1 || true
+done
+
+cat >> /etc/skel/.bashrc <<'LUMORA_RC'
+
+# Lumora prompt (violet user, cyan host)
+PS1='\[\e[38;2;176;38;255m\]\u\[\e[0m\]@\[\e[38;2;0;240;255m\]\h\[\e[0m\]:\[\e[38;2;216;166;255m\]\w\[\e[0m\]\$ '
+LUMORA_RC
+
+chmod 755 /usr/bin/lumora-hub /usr/bin/lumora-install /usr/lib/lumora/helper /etc/grub.d/40_lumora_tools 2>/dev/null
+flatpak remote-add --system --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo >/dev/null 2>&1 || true
+update-desktop-database /usr/share/applications >/dev/null 2>&1 || true
+exit 0

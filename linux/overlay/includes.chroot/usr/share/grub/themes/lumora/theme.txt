@@ -1,0 +1,53 @@
+desktop-image: "background.png"
+desktop-color: "#130B20"
+title-text: ""
+terminal-font: "@FONT@"
+
++ image {
+  left = 50%-160
+  top = 5%
+  file = "logo.png"
+}
+
++ image {
+  left = 50%-300
+  top = 5%+337
+  file = "panel.png"
+}
+
++ boot_menu {
+  left = 50%-270
+  top = 5%+357
+  width = 540
+  height = 196
+  item_font = "@FONT@"
+  item_color = "#D8C8F5"
+  selected_item_color = "#FFFFFF"
+  item_height = 44
+  item_padding = 22
+  item_spacing = 8
+  selected_item_pixmap_style = "select_*.png"
+  scrollbar = false
+}
+
++ progress_bar {
+  id = "__timeout__"
+  left = 50%-270
+  top = 5%+590
+  width = 540
+  height = 4
+  show_text = false
+  fg_color = "#00F0FF"
+  bg_color = "#2C1F4D"
+  border_color = "#2C1F4D"
+}
+
++ label {
+  left = 0
+  top = 5%+620
+  width = 100%
+  align = "center"
+  text = "Use the arrow keys to choose, Enter to boot, E to edit"
+  font = "@FONT_SMALL@"
+  color = "#A998C9"
+}

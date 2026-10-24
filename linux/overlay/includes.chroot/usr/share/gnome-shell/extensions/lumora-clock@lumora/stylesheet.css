@@ -1,0 +1,25 @@
+/* Lumora lock screen */
+.unlock-dialog-clock-time {
+  font-size: 96px;
+  font-weight: 700;
+  color: #00F0FF;
+}
+.unlock-dialog-clock-date {
+  font-size: 20px;
+  font-weight: 500;
+  color: #D8C8F5;
+}
+.unlock-dialog-clock-hint {
+  color: #A998C9;
+}
+.login-dialog-prompt-entry {
+  border-radius: 999px;
+  background-color: rgba(44, 31, 77, 0.85);
+  border: 1px solid #B026FF;
+  color: #F1E9FF;
+  padding: 8px 18px;
+}
+.login-dialog-prompt-entry:focus {
+  border-color: #00F0FF;
+  box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.35);
+}

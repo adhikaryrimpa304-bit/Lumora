@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Lumora Updates
+Comment=Keep Lumora secure and up to date
+Exec=lumora-hub --page=updates
+Icon=software-update-available
+Terminal=false
+Categories=GNOME;GTK;System;

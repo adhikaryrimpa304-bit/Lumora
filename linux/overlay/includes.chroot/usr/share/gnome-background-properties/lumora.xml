@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<!DOCTYPE wallpapers SYSTEM "gnome-wp-list.dtd">
+<wallpapers>
+  <wallpaper deleted="false">
+    <name>Lumora Orbs</name>
+    <filename>/usr/share/backgrounds/lumora/lumora.png</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/lumora.png</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Aurora</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-aurora.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-aurora.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Horizon</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-horizon.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-horizon.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Prism</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-prism.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-prism.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Nebula</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-nebula.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-nebula.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Midnight</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-midnight.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-midnight.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+  <wallpaper deleted="false">
+    <name>Lumora Logo</name>
+    <filename>/usr/share/backgrounds/lumora/pack/lumora-logo.jpg</filename>
+    <filename-dark>/usr/share/backgrounds/lumora/pack/lumora-logo.jpg</filename-dark>
+    <options>zoom</options>
+    <shade_type>solid</shade_type>
+    <pcolor>#130B20</pcolor>
+    <scolor>#130B20</scolor>
+  </wallpaper>
+</wallpapers>
